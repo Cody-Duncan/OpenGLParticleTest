@@ -1,0 +1,11 @@
+#version 330 core
+
+out vec4 outputColor;
+uniform sampler1D particleAccessTexture;
+in float accessFloat;
+
+void main(void)
+{
+	vec4 textureColor = texture(particleAccessTexture, accessFloat);
+	outputColor = textureColor;
+}

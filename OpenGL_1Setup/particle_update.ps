@@ -1,0 +1,11 @@
+#version 330 core
+
+in float textureSample;
+layout(location = 0)out vec3 outputColor;
+uniform sampler1D particleAccessTexture;
+
+void main(void)
+{
+	vec4 textureLookup = texture(particleAccessTexture, textureSample);
+	outputColor = vec3(0, 1.0, 0);
+}

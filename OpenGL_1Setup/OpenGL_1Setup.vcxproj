@@ -90,9 +90,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Driver.cpp" />
+    <ClCompile Include="FrameBufferObject.cpp" />
     <ClCompile Include="Shaders.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="FrameBufferObject.h" />
     <ClInclude Include="Shaders.h" />
   </ItemGroup>
   <ItemGroup>

@@ -3,9 +3,11 @@
   <ItemGroup>
     <ClCompile Include="Driver.cpp" />
     <ClCompile Include="Shaders.cpp" />
+    <ClCompile Include="FrameBufferObject.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Shaders.h" />
+    <ClInclude Include="FrameBufferObject.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="pixe.glsl" />

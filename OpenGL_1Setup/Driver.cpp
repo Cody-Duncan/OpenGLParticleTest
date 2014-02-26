@@ -5,8 +5,11 @@
 #include <limits>       //numeric limits
 #include <crtdbg.h>     //memory leak debugging
 
-#include <GL/freeglut.h>
+#include <glload/gl_all.h>
 #include <glload\gl_load.hpp>
+#include <GL/freeglut.h>
+
+#include "Shaders.h"
 
 int ScreenWidth = 800;
 int ScreenHeight = 600;
@@ -66,6 +69,27 @@ int main(int argc, char** argv)
 
 void Draw()
 {
+    //set clear color and enable features
+    glClearColor( 0.0f, 0.0f, 0.0f, 0.0f );
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+
+    
+    //Create Shader
+    GLuint vertexShader = CreateShader("vert.hlsl", GL_VERTEX_SHADER);
+    GLuint pixelShader = CreateShader("pixe.hlsl", GL_FRAGMENT_SHADER);
+
+    GLuint baseShader = glCreateProgram();
+    glBindAttribLocation(baseShader, 0, "position");
+    glBindAttribLocation(baseShader, 1, "color");
+    LinkProgram(baseShader, vertexShader, pixelShader);
+    glUseProgram(baseShader);
+    
+
+    //checking for correct indexing
+    //GLint index = glGetAttribLocation(baseShader, "position");
+    //GLint index2 = glGetAttribLocation(baseShader, "outColor");
+    GLint MatrixID = glGetUniformLocation(baseShader, "MVP");
     
 }
 void ResizeWindow(int newWidth, int newHeight)

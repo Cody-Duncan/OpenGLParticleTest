@@ -9,6 +9,10 @@
 #include <glload\gl_load.hpp>
 #include <GL/freeglut.h>
 
+#include <glm\glm.hpp>
+#include <glm\gtc\matrix_transform.hpp>
+#include <glm/gtc/matrix_access.hpp>
+
 #include "Shaders.h"
 
 int ScreenWidth = 800;
@@ -22,6 +26,8 @@ void KeyboardDown(unsigned char key, int x, int y);
 void KeyboardUp(unsigned char key, int x, int y);
 void MouseButton(int button, int state, int x, int y);
 void MouseMove(int x, int y);
+
+void Initialize();
 
 int main(int argc, char** argv)
 {
@@ -51,6 +57,8 @@ int main(int argc, char** argv)
     //Alternatives to glLoad are documented here:http://www.opengl.org/wiki/OpenGL_Loading_Library
     // GLEW, GL3W, OpenGL Loader Generator, GlLoad
     glload::LoadFunctions();
+
+    Initialize();
     
     //hook function bindings
     glutDisplayFunc(&Draw);
@@ -67,17 +75,23 @@ int main(int argc, char** argv)
     return 0;
 }
 
-void Draw()
+GLuint vertexShader;
+GLuint pixelShader;
+GLuint baseShader;
+GLint MVP_Matrix_ID;
+
+glm::mat4 viewProj;
+
+void Initialize()
 {
     //set clear color and enable features
     glClearColor( 0.0f, 0.0f, 0.0f, 0.0f );
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
-
     
     //Create Shader
-    GLuint vertexShader = CreateShader("vert.hlsl", GL_VERTEX_SHADER);
-    GLuint pixelShader = CreateShader("pixe.hlsl", GL_FRAGMENT_SHADER);
+    vertexShader = CreateShader("vert.glsl", GL_VERTEX_SHADER);
+    pixelShader = CreateShader("pixe.glsl", GL_FRAGMENT_SHADER);
 
     GLuint baseShader = glCreateProgram();
     glBindAttribLocation(baseShader, 0, "position");
@@ -85,29 +99,65 @@ void Draw()
     LinkProgram(baseShader, vertexShader, pixelShader);
     glUseProgram(baseShader);
     
+    MVP_Matrix_ID = glGetUniformLocation(baseShader, "MVP");
 
-    //checking for correct indexing
-    //GLint index = glGetAttribLocation(baseShader, "position");
-    //GLint index2 = glGetAttribLocation(baseShader, "outColor");
-    GLint MatrixID = glGetUniformLocation(baseShader, "MVP");
-    
+
+    //World, View, Projection matrices
+    glm::mat4 view = glm::lookAt(
+        glm::vec3(0, 2, -3),
+        glm::vec3(0,0,0),
+        glm::vec3(0,1,0)
+    );
+    glm::mat4 projection = glm::perspective(
+        75.0f,        //FOV
+        4.0f / 3.0f,  //aspect ratio
+        0.1f,         //near plane
+        100.0f        //far plane
+    );
+    viewProj =  projection * view;
 }
+
+void Draw()
+{
+    glm::mat4 world;;
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glUseProgram(baseShader);
+
+    glPushMatrix();
+                
+        //update matrix in shader
+        glUniformMatrix4fv(MVP_Matrix_ID, 1, GL_FALSE, &(viewProj * world)[0][0]);
+
+        //draw cube
+        glDrawArrays(GL_TRIANGLES, 0, 12*3);
+
+    glPopMatrix();
+            
+    glFlush();
+    glutSwapBuffers();
+}
+
 void ResizeWindow(int newWidth, int newHeight)
 {
     
 }
+
 void KeyboardDown(unsigned char key, int x, int y)
 {
     
 }
+
 void KeyboardUp(unsigned char key, int x, int y)
 {
     
 }
+
 void MouseButton(int button, int state, int x, int y)
 {
     
 }
+
 void MouseMove(int x, int y)
 {
     

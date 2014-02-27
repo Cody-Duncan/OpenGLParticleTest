@@ -16,10 +16,14 @@
 #include "FrameBufferObject.h"
 #include "Shaders.h"
 
+#define TEX_SIZE 512
+
 int ScreenWidth = 800;
 int ScreenHeight = 600;
 
 int WindowHandle;
+
+FrameBufferObject frame1;
 
 void Draw();
 void ResizeWindow(int newWidth, int newHeight);
@@ -36,6 +40,7 @@ int main(int argc, char** argv)
 
     glutInitContextVersion (3, 3);                      //opengl version
     glutInitContextProfile(GLUT_COMPATIBILITY_PROFILE); //set for compatibility mode
+    glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
 
     glutInitWindowSize(ScreenWidth, ScreenHeight);
 
@@ -79,9 +84,23 @@ int main(int argc, char** argv)
 GLuint vertexShader;
 GLuint pixelShader;
 GLuint baseShader;
+GLuint textureShader;
 GLint MVP_Matrix_ID;
 
 glm::mat4 viewProj;
+
+GLuint vertexBuffer;
+static const GLfloat g_vertex_buffer_data[] = {
+    -0.5f, 0.0f, 0.0f, 
+    -0.5f, 1.0f, 0.0f,
+    10.0f, 0.0f, 0.0f, 
+};
+
+GLuint singleVBuffer;
+static const GLfloat singleVBufferData[] = 
+{
+    0.0f, 0.0f, 0.0f, 
+};
 
 void Initialize()
 {
@@ -90,22 +109,29 @@ void Initialize()
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
     
-    //Create Shader
+    //Create Base Shader
     vertexShader = CreateShader("vert.glsl", GL_VERTEX_SHADER);
     pixelShader = CreateShader("pixe.glsl", GL_FRAGMENT_SHADER);
 
-    GLuint baseShader = glCreateProgram();
+    baseShader = glCreateProgram();
     glBindAttribLocation(baseShader, 0, "position");
-    glBindAttribLocation(baseShader, 1, "color");
     LinkProgram(baseShader, vertexShader, pixelShader);
-    glUseProgram(baseShader);
-    
+
     MVP_Matrix_ID = glGetUniformLocation(baseShader, "MVP");
 
 
+    //Create Texture Shader
+    vertexShader = CreateShader("texture.vert", GL_VERTEX_SHADER);
+    pixelShader = CreateShader("texture.frag", GL_FRAGMENT_SHADER);
+    textureShader = glCreateProgram();
+    glBindAttribLocation(textureShader, 0, "position");
+    LinkProgram(textureShader, vertexShader, pixelShader);
+
+    printActiveUniforms(baseShader);
+    
     //World, View, Projection matrices
     glm::mat4 view = glm::lookAt(
-        glm::vec3(0, 2, -3),
+        glm::vec3(0, 0, 7),
         glm::vec3(0,0,0),
         glm::vec3(0,1,0)
     );
@@ -116,27 +142,114 @@ void Initialize()
         100.0f        //far plane
     );
     viewProj =  projection * view;
+
+    frame1.CreateFBO(TEX_SIZE, TEX_SIZE);
+
+    //create a vertex buffer
+    glGenBuffers(1, &vertexBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+
+    //bind the vertex buffer to attribute
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+    glVertexAttribPointer(
+        0,                                // attribute. 0 must match layout in shader
+        3,                                // 3 floats per vertex
+        GL_FLOAT,                         // type
+        GL_FALSE,                         // normalized?
+        0,                                // stride - tightly packed
+        (void*)0                          // array buffer offset
+    );
+
+    //create a SINGLE VERTEX BUFFER
+    glGenBuffers(1, &singleVBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, singleVBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(singleVBufferData), singleVBufferData, GL_STATIC_DRAW);
+
+    //bind the vertex buffer to attribute
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, singleVBuffer);
+    glVertexAttribPointer(
+        0,                                // attribute. 0 must match layout in shader
+        3,                                // 3 floats per vertex
+        GL_FLOAT,                         // type
+        GL_FALSE,                         // normalized?
+        0,                                // stride - tightly packed
+        (void*)0                          // array buffer offset
+    );
 }
 
 void Draw()
 {
-    glm::mat4 world;;
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    static float angle = 0.5;
+    angle += 0.5;
+    glm::mat4 world; //reset matrix
+    world = glm::rotate(world, angle, glm::vec3(0,1,0));
+    glm::mat4 result = viewProj * world;
+    
+    //--------------processing pass------------------
+    
     glUseProgram(baseShader);
+    frame1.Bind();
 
-    glPushMatrix();
-                
+    glViewport(0,0,TEX_SIZE, TEX_SIZE);
+    glClearColor( 0.0f, 1.0f, 0.0f, 1.0f );
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
         //update matrix in shader
         glUniformMatrix4fv(MVP_Matrix_ID, 1, GL_FALSE, &(viewProj * world)[0][0]);
+        
+    frame1.Unbind();
+    glUseProgram(0);
+    
 
-        //draw cube
-        glDrawArrays(GL_TRIANGLES, 0, 12*3);
+    glViewport(0,0,ScreenWidth, ScreenHeight);
+    glClearColor( 0.0f, 0.0f, 0.0f, 0.0f );
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glPopMatrix();
-            
-    glFlush();
+    //----------------texture draw--------------------
+    glUseProgram(textureShader);
+
+        //draw fbo texture
+        glBindBuffer(GL_ARRAY_BUFFER, singleVBuffer);
+        glVertexAttribPointer(
+            0,                                // attribute. 0 must match layout in shader
+            3,                                // 3 floats per vertex
+            GL_FLOAT,                         // type
+            GL_FALSE,                         // normalized?
+            0,                                // stride - tightly packed
+            (void*)0                          // array buffer offset
+        );
+        glDrawArrays(GL_POINTS, 0, 1);
+
+    glUseProgram(0);
+    
+
+    //--------------- point draw ------------------
+    glUseProgram(baseShader);
+        glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+
+        //draw 3 points
+        glUniformMatrix4fv(MVP_Matrix_ID, 1, GL_FALSE, &(result[0][0]));
+
+        glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+        glVertexAttribPointer(
+            0,                                // attribute. 0 must match layout in shader
+            3,                                // 3 floats per vertex
+            GL_FLOAT,                         // type
+            GL_FALSE,                         // normalized?
+            0,                                // stride - tightly packed
+            (void*)0                          // array buffer offset
+        );
+        glPointSize(40);
+        glDrawArrays(GL_POINTS, 0, 3);
+        
+    glUseProgram(0);
+
     glutSwapBuffers();
+
+    glutPostRedisplay();
 }
 
 void ResizeWindow(int newWidth, int newHeight)

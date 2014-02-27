@@ -12,5 +12,7 @@
   <ItemGroup>
     <None Include="pixe.glsl" />
     <None Include="vert.glsl" />
+    <None Include="texture.vert" />
+    <None Include="texture.frag" />
   </ItemGroup>
 </Project>

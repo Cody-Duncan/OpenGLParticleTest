@@ -87,11 +87,11 @@ void printActiveUniforms(GLuint baseShader)
     std::vector<GLint> values(properties.size());
     for(int attrib = 0; attrib < numActiveAttribs; ++attrib)
     {
-        glGetProgramResourceiv(baseShader, GL_PROGRAM_INPUT, attrib, properties.size(),
+        glGetProgramResourceiv(baseShader, GL_UNIFORM, attrib, properties.size(),
         &properties[0], values.size(), NULL, &values[0]);
             
         nameData.resize(properties[0]); //The length of the name.
-        glGetProgramResourceName(baseShader, GL_PROGRAM_INPUT, attrib, nameData.size(), NULL, &nameData[0]);
+        glGetProgramResourceName(baseShader, GL_UNIFORM, attrib, nameData.size(), NULL, &nameData[0]);
         std::string name((char*)&nameData[0], nameData.size() - 1);
     }
 }

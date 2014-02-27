@@ -5,5 +5,5 @@
 
 GLint CreateShader(const char * filename, GLenum type);
 void LinkProgram(GLuint program, GLuint vertexShader, GLuint pixelShader);
-void printActiveUniforms();
+void printActiveUniforms(GLuint shader);
 

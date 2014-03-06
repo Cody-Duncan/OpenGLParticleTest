@@ -10,9 +10,28 @@
     <ClInclude Include="FrameBufferObject.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="pixe.glsl" />
-    <None Include="vert.glsl" />
-    <None Include="texture.vert" />
-    <None Include="texture.frag" />
+    <None Include="base.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="texture.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="texture.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="base.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="process.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="process.frag">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{30d9af3c-148e-444e-8038-eb08046fcc4e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>

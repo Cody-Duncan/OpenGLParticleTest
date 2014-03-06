@@ -98,10 +98,12 @@
     <ClInclude Include="Shaders.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="pixe.glsl" />
+    <None Include="base.frag" />
+    <None Include="process.frag" />
+    <None Include="process.vert" />
     <None Include="texture.frag" />
     <None Include="texture.vert" />
-    <None Include="vert.glsl" />
+    <None Include="base.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

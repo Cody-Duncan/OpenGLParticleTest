@@ -2,12 +2,12 @@
 class FrameBufferObject
 {
     unsigned int fbo; //generated fbo GLint id
-
+public:
     unsigned int texture; //GL int id for texture
     int width;  // width of texture
     int height; //height of texture
 
-public:
+
     FrameBufferObject(void);
     ~FrameBufferObject(void);
 

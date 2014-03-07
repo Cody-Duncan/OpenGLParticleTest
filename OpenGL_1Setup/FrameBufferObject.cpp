@@ -76,3 +76,9 @@ void FrameBufferObject::CreateFBO(const int w, const int h)
 
 void FrameBufferObject::Bind() { glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fbo); }
 void FrameBufferObject::Unbind() { glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0); }
+
+size_t FrameBufferObject::sizeOfTexture()
+{ 
+    //width * height * 4 elements per pixel * 4 bytes per elemenet (32 bit float);
+    return width * height * 4 * 4;
+}

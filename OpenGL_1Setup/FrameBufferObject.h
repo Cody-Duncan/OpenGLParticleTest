@@ -14,5 +14,7 @@ public:
     void FrameBufferObject::CreateFBO(const int w, const int h);
     void FrameBufferObject::Bind() ;
     void FrameBufferObject::Unbind();
+
+    size_t FrameBufferObject::sizeOfTexture();
 };
 

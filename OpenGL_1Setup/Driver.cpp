@@ -1,3 +1,11 @@
+﻿/*
+
+Notes
+
+Try rendering to PixelBufferObject, then rebinding as a VertexBufferObject. 
+See: http://devmaster.net/posts/11093/render-to-vertexbuffer-in-opengl-howto
+*/
+
 #include <string>       //string
 #include <stdio.h>      //cout, endl
 #include <windows.h>    //windows header
@@ -93,9 +101,9 @@ glm::mat4 viewProj;
 GLuint vertex_AO;
 GLuint vertexBuffer;
 static const GLfloat g_vertex_buffer_data[] = {
-    -0.5f, 0.0f, 0.0f, 
-    -0.5f, 1.0f, 0.0f,
-    10.0f, 0.0f, 0.0f, 
+    -0.5f, 0.0f, 0.0f, 1.0f,
+    -0.5f, 1.0f, 0.0f, 1.0f,
+    10.0f, 0.0f, 0.0f, 1.0f,
 };
 
 GLuint singleV_AO;
@@ -104,6 +112,9 @@ static const GLfloat singleVBufferData[] =
 {
     0.0f, 0.0f, 0.0f, 
 };
+
+
+
 
 void Initialize()
 {
@@ -163,15 +174,16 @@ void Initialize()
 	glBindVertexArray(vertex_AO);
 
 	//fill VAO
+    //NOTE: buffer size must be same size as input texture data from FBO.
 	glGenBuffers(1, &vertexBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, frame1.sizeOfTexture(), g_vertex_buffer_data, GL_DYNAMIC_DRAW);
 
     //bind the vertex buffer to attribute
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(
         0,                                // attribute. 0 must match layout in shader
-        3,                                // 3 floats per vertex
+        4,                                // 4 floats per vertex
         GL_FLOAT,                         // type
         GL_FALSE,                         // normalized?
         0,                                // stride - tightly packed

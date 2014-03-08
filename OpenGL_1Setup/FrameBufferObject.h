@@ -16,5 +16,6 @@ public:
     void FrameBufferObject::Unbind();
 
     size_t FrameBufferObject::sizeOfTexture();
+    int FrameBufferObject::numPixels();
 };
 

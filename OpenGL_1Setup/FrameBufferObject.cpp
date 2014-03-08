@@ -43,7 +43,7 @@ void FrameBufferObject::CreateFBO(const int w, const int h)
     glTexImage2D(
         GL_TEXTURE_2D, 
         0, 
-        GL_RGBA32F_ARB, 
+        GL_RGBA32F, 
         width, height,
         0,
         GL_RGBA,
@@ -55,8 +55,8 @@ void FrameBufferObject::CreateFBO(const int w, const int h)
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
     glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT,
                               GL_COLOR_ATTACHMENT0_EXT,
@@ -81,4 +81,10 @@ size_t FrameBufferObject::sizeOfTexture()
 { 
     //width * height * 4 elements per pixel * 4 bytes per elemenet (32 bit float);
     return width * height * 4 * 4;
+}
+
+int FrameBufferObject::numPixels()
+{ 
+    //width * height * 4 elements per pixel * 4 bytes per elemenet (32 bit float);
+    return width * height;
 }

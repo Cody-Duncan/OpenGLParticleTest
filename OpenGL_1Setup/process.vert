@@ -3,11 +3,14 @@
 uniform mat4 MVP;
 
 in vec3 position;
+in vec2 uv;
+
+out vec2 uvCoord;
  
 void main() 
 { 
 	vec3 pos = position;
-	pos.x = pos.x;
-	pos.y = pos.y;
     gl_Position = vec4(pos,1.0);
+
+    uvCoord = uv;
 }

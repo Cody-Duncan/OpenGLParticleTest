@@ -24,7 +24,10 @@ See: http://devmaster.net/posts/11093/render-to-vertexbuffer-in-opengl-howto
 #include "FrameBufferObject.h"
 #include "Shaders.h"
 
-#define TEX_SIZE 64
+#include <random>
+
+static const int textureWidth = 4096;
+static const int textureHeight = textureWidth;
 
 int ScreenWidth = 800;
 int ScreenHeight = 600;
@@ -71,7 +74,7 @@ int main(int argc, char** argv)
     //Alternatives to glLoad are documented here:http://www.opengl.org/wiki/OpenGL_Loading_Library
     // GLEW, GL3W, OpenGL Loader Generator, GlLoad
     glload::LoadFunctions();
-
+    
     Initialize();
     
     //hook function bindings
@@ -84,6 +87,10 @@ int main(int argc, char** argv)
     glutMouseFunc(&MouseButton);
     glutMotionFunc(&MouseMove);
 
+    int MaxVertexTextureImageUnits;
+    glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, &MaxVertexTextureImageUnits);
+    printf("MAX VERTEX TEXTURE IMAGE UNITS: %d\n", MaxVertexTextureImageUnits);
+
     glutMainLoop();
 
     return 0;
@@ -95,8 +102,15 @@ GLuint baseShader;
 GLuint textureShader;
 GLuint processShader;
 GLint MVP_Matrix_ID;
+GLint inputVal_ID;
 
 glm::mat4 viewProj;
+
+GLuint single_AO;
+GLuint singleBuffer;
+static const GLfloat singleBufferData[] = {
+    0,0,0
+};
 
 GLuint vertex_AO;
 GLuint vertexBuffer;
@@ -106,98 +120,53 @@ static const GLfloat g_vertex_buffer_data[] = {
     10.0f, 0.0f, 0.0f, 1.0f,
 };
 
-GLuint singleV_AO;
-GLuint singleVBuffer;
-static const GLfloat singleVBufferData[] = 
+GLuint quad_AO;
+GLuint quadBuffer;
+GLuint quadBufferUV;
+static const GLfloat quadBufferData[] = 
 {
-    0.0f, 0.0f, 0.0f, 
+   -1, -1, 0.0f,
+    1, -1, 0.0f,
+    1,  1, 0.0f,
+   -1, -1, 0.0f,
+    1,  1, 0.0f,
+   -1,  1, 0.0f,
 };
 
-
-
-
-void Initialize()
+GLuint upleftQuad_AO;
+GLuint upleftQuadBuffer;
+static const GLfloat upleftQuadBufferData[] = 
 {
-    //set clear color and enable features
-    glClearColor( 0.0f, 0.0f, 0.0f, 0.0f );
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
-    
+   -0.95f, 0.10f, 0.0f,
+   -0.30f, 0.10f, 0.0f,
+   -0.30f, 0.85f, 0.0f,
+   -0.95f, 0.10f, 0.0f,
+   -0.30f, 0.85f, 0.0f,
+   -0.95f, 0.85f, 0.0f,
+};
 
-    //Create Base Shader
-    vertexShader = CreateShader("base.vert", GL_VERTEX_SHADER);
-    pixelShader = CreateShader("base.frag", GL_FRAGMENT_SHADER);
+GLuint upleftQuadBufferUV;
+static const GLfloat upleftQuadBufferUVData[] = 
+{
+    0,0,
+    1,0,
+    1,1,
+    0,0,
+    1,1,
+    0,1,
+};
 
-    baseShader = glCreateProgram();
-    glBindAttribLocation(baseShader, 0, "position");
-    LinkProgram(baseShader, vertexShader, pixelShader);
+GLuint randomTexture;
 
-    MVP_Matrix_ID = glGetUniformLocation(baseShader, "MVP");
-
-
-	//Create Base Shader
-    vertexShader = CreateShader("process.vert", GL_VERTEX_SHADER);
-    pixelShader = CreateShader("process.frag", GL_FRAGMENT_SHADER);
-
-	processShader = glCreateProgram();
-    glBindAttribLocation(processShader, 0, "position");
-    LinkProgram(processShader, vertexShader, pixelShader);
-
-
-    //Create Texture Shader
-    vertexShader = CreateShader("texture.vert", GL_VERTEX_SHADER);
-    pixelShader = CreateShader("texture.frag", GL_FRAGMENT_SHADER);
-    textureShader = glCreateProgram();
-    glBindAttribLocation(textureShader, 0, "position");
-    LinkProgram(textureShader, vertexShader, pixelShader);
-
-    printActiveUniforms(baseShader);
-    
-    //World, View, Projection matrices
-    glm::mat4 view = glm::lookAt(
-        glm::vec3(0, 0, 7),
-        glm::vec3(0,0,0),
-        glm::vec3(0,1,0)
-    );
-    glm::mat4 projection = glm::perspective(
-        75.0f,        //FOV
-        4.0f / 3.0f,  //aspect ratio
-        0.1f,         //near plane
-        100.0f        //far plane
-    );
-    viewProj =  projection * view;
-
-    frame1.CreateFBO(TEX_SIZE, TEX_SIZE);
-
-	//create/bind a Vertex Array Object (VAO)
-	glGenVertexArrays(1, &vertex_AO);
-	glBindVertexArray(vertex_AO);
-
-	//fill VAO
-    //NOTE: buffer size must be same size as input texture data from FBO.
-	glGenBuffers(1, &vertexBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, frame1.sizeOfTexture(), g_vertex_buffer_data, GL_DYNAMIC_DRAW);
-
-    //bind the vertex buffer to attribute
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(
-        0,                                // attribute. 0 must match layout in shader
-        4,                                // 4 floats per vertex
-        GL_FLOAT,                         // type
-        GL_FALSE,                         // normalized?
-        0,                                // stride - tightly packed
-        (void*)0                          // array buffer offset
-    );
-
-
-	glGenVertexArrays(1, &singleV_AO);
-	glBindVertexArray(singleV_AO);
+void createSingleArray()
+{
+	glGenVertexArrays(1, &single_AO);
+	glBindVertexArray(single_AO);
 
     //create a SINGLE VERTEX BUFFER
-    glGenBuffers(1, &singleVBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, singleVBuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(singleVBufferData), singleVBufferData, GL_STATIC_DRAW);
+    glGenBuffers(1, &singleBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, singleBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(singleBufferData), singleBufferData, GL_STATIC_DRAW);
 
     //bind the vertex buffer to attribute
     glEnableVertexAttribArray(0);
@@ -211,70 +180,294 @@ void Initialize()
     );
 }
 
-void Draw()
+void createVertexArray()
 {
-    static float angle = 0.5;
-    angle += 0.5;
-    glm::mat4 world; //reset matrix
-    world = glm::rotate(world, angle, glm::vec3(0,1,0));
-    glm::mat4 result = viewProj * world;
-    
-	glEnable(GL_POINT_SPRITE);
+    //create/bind a Vertex Array Object (VAO)
+	glGenVertexArrays(1, &vertex_AO);
+	glBindVertexArray(vertex_AO);
 
-    //--------------processing pass------------------
+	//fill VAO
+    //NOTE: buffer size must be same size as input texture data from FBO.
+	glGenBuffers(1, &vertexBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+    int numVerts = 20;
+    int sizeBuffer = numVerts * 4 * sizeof(float);
     
-	glUseProgram(processShader);
+
+    std::random_device rd;
+    std::mt19937 e(rd());
+    std::uniform_real_distribution<float> uniform_dist(0,1);
+
+    
+
+    float* startBuffer = new float[numVerts*4];
+    for(int i = 0; i < numVerts*4; ++i)
+    {
+        startBuffer[i] = uniform_dist(e);
+    }
+
+    glBufferData(GL_ARRAY_BUFFER, sizeBuffer, startBuffer, GL_STATIC_DRAW);
+
+    //bind the vertex buffer to attribute
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(
+        0,                                // attribute. 0 must match layout in shader
+        4,                                // 4 floats per vertex
+        GL_FLOAT,                         // type
+        GL_FALSE,                         // normalized?
+        0,                                // stride - tightly packed
+        (void*)0                          // array buffer offset
+    );
+}
+
+
+void createQuadArray()
+{
+	glGenVertexArrays(1, &quad_AO);
+	glBindVertexArray(quad_AO);
+
+    //create a SINGLE VERTEX BUFFER
+    glGenBuffers(1, &quadBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, quadBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadBufferData), quadBufferData, GL_STATIC_DRAW);
+
+    int POS_index = glGetAttribLocation(processShader, "position");
+    int UV_index = glGetAttribLocation(processShader, "uv");
+
+    //bind the vertex buffer to attribute
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(
+        POS_index,                                // attribute. 0 must match layout in shader
+        3,                                // 3 floats per vertex
+        GL_FLOAT,                         // type
+        GL_FALSE,                         // normalized?
+        0,                                // stride - tightly packed
+        (void*)0                          // array buffer offset
+    );
+
+    
+    glGenBuffers(1, &quadBufferUV);
+    glBindBuffer(GL_ARRAY_BUFFER, quadBufferUV);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(upleftQuadBufferUVData), upleftQuadBufferUVData, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(
+        UV_index,                                // attribute. 1 must match layout in shader
+        2,                                // 2 floats per set of UV
+        GL_FLOAT,                         // type
+        GL_FALSE,                         // normalized?
+        0,                                // stride - tightly packed
+        (void*)0                          // array buffer offset
+    );
+}
+
+void createULQuadArray()
+{
+	glGenVertexArrays(1, &upleftQuad_AO);
+	glBindVertexArray(upleftQuad_AO);
+
+    //create a SINGLE VERTEX BUFFER
+    glGenBuffers(1, &upleftQuadBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, upleftQuadBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(upleftQuadBufferData), upleftQuadBufferData, GL_STATIC_DRAW);
+
+    int POS_index = glGetAttribLocation(textureShader, "position");
+    int UV_index = glGetAttribLocation(textureShader, "uv");
+
+    //bind the vertex buffer to attribute
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(
+        POS_index,                                // attribute. 0 must match layout in shader
+        3,                                // 3 floats per vertex
+        GL_FLOAT,                         // type
+        GL_FALSE,                         // normalized?
+        0,                                // stride - tightly packed
+        (void*)0                          // array buffer offset
+    );
+
+    glGenBuffers(1, &upleftQuadBufferUV);
+    glBindBuffer(GL_ARRAY_BUFFER, upleftQuadBufferUV);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(upleftQuadBufferUVData), upleftQuadBufferUVData, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(
+        UV_index,                                // attribute. 1 must match layout in shader
+        2,                                // 2 floats per set of UV
+        GL_FLOAT,                         // type
+        GL_FALSE,                         // normalized?
+        0,                                // stride - tightly packed
+        (void*)0                          // array buffer offset
+    );
+}
+
+void createRandomTexture()
+{
+    glGenTextures(1, &randomTexture);
+    glBindTexture(GL_TEXTURE_2D, randomTexture);
+}
+
+void Initialize()
+{
+    //set clear color and enable features
+    glClearColor( 0.0f, 0.0f, 0.0f, 0.0f );
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    
+    
+    //Create Base Shader
+    vertexShader = CreateShader("base.vert", GL_VERTEX_SHADER);
+    pixelShader = CreateShader("base.frag", GL_FRAGMENT_SHADER);
+
+    baseShader = glCreateProgram();
+    glBindAttribLocation(baseShader, 0, "position");
+    LinkProgram(baseShader, vertexShader, pixelShader);
+
+    MVP_Matrix_ID = glGetUniformLocation(baseShader, "MVP");
+    inputVal_ID = glGetUniformLocation(baseShader, "inputVal");
+
+	//Create Process Shader
+    vertexShader = CreateShader("process.vert", GL_VERTEX_SHADER);
+    pixelShader = CreateShader("process.frag", GL_FRAGMENT_SHADER);
+
+	processShader = glCreateProgram();
+    glBindAttribLocation(processShader, 0, "position");
+    glBindAttribLocation(processShader, 1, "uv");
+    LinkProgram(processShader, vertexShader, pixelShader);
+
+
+    //Create Texture Shader
+    vertexShader = CreateShader("texture.vert", GL_VERTEX_SHADER);
+    pixelShader = CreateShader("texture.frag", GL_FRAGMENT_SHADER);
+    textureShader = glCreateProgram();
+    glBindAttribLocation(textureShader, 0, "position");
+    glBindAttribLocation(textureShader, 1, "uv");
+    LinkProgram(textureShader, vertexShader, pixelShader);
+
+    printActiveUniforms(baseShader);
+
+    
+    //World, View, Projection matrices
+    glm::mat4 view = glm::lookAt(
+        glm::vec3(0, 0, 1000),
+        glm::vec3(0,0,0),
+        glm::vec3(0,1,0)
+    );
+    glm::mat4 projection = glm::perspective(
+        85.0f,        //FOV
+        4.0f / 3.0f,  //aspect ratio
+        0.1f,         //near plane
+        100000.0f        //far plane
+    );
+    viewProj =  projection * view;
+
+
+    frame1.CreateFBO(textureWidth, textureHeight);
+	createVertexArray();
+    createSingleArray();
+    createQuadArray();
+    createULQuadArray();
+    createRandomTexture();
+}
+
+void processingPass()
+{
+    glEnable(GL_POINT_SPRITE);
+
+    glUseProgram(processShader);
     frame1.Bind();
 
-    glViewport(0, 0, TEX_SIZE, TEX_SIZE);
+    glViewport(0, 0, textureWidth, textureHeight);
     glClearColor( 0.0f, 1.0f, 0.0f, 1.0f ); //green texture
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glPointSize(40);
+	glPointSize((float)textureWidth);
+
 
         //update matrix in shader
-        glBindVertexArray(singleV_AO);
-        glDrawArrays(GL_POINTS, 0, 1);
-        
+        glBindVertexArray(quad_AO);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindVertexArray(0);
+
     frame1.Unbind();
     glUseProgram(0);
-    
-	
-    glViewport(0,0,ScreenWidth, ScreenHeight);
-    glClearColor( 0.0f, 0.0f, 0.0f, 0.0f );
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glDisable(GL_POINT_SPRITE);
+}
 
-	
-    //----------------texture draw--------------------
-
+void textureDraw()
+{
     glUseProgram(textureShader);
 
+        glDisable(GL_CULL_FACE);
 		glEnable(GL_TEXTURE_2D);
 		
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, frame1.texture);
-		glUniform1i(glGetUniformLocation(textureShader, "texture0"), 0); //bind texture 0 to GL_TEXTURE0
+        int texture0ID = glGetUniformLocation(textureShader, "texture0");
+		glUniform1i(texture0ID, 0); //bind texture 0 to GL_TEXTURE0
 		
+        
 
         //draw fbo texture
-        glBindVertexArray(singleV_AO);
-        glDrawArrays(GL_POINTS, 0, 1);
+        glBindVertexArray(upleftQuad_AO);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindVertexArray(0);
 
     glUseProgram(0);
-    
+}
 
-    //--------------- point draw ------------------
+void particleDraw()
+{
+    glPointSize(2);
+
+    static float angle = 0.5f;
+    angle += 0.01f;
+    
+    glm::mat4 startTrans = glm::translate(glm::mat4(),glm::vec3(-0.5,-0.6,-1));
+    glm::mat4 scaleMat = glm::scale(glm::mat4(),glm::vec3(8096));
+    glm::mat4 rotMat = glm::rotate(glm::mat4(), angle*8, glm::vec3(0,1,0));
+    glm::mat4 world = rotMat * scaleMat * startTrans;
+
+    glm::mat4 result = viewProj * world;
+
     glUseProgram(baseShader);
-        glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+
+        glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, frame1.texture);
+        int baseShaderTexture0ID = glGetUniformLocation(baseShader, "texture0");
+		glUniform1i(baseShaderTexture0ID, 0);
+
+        int textureSizeID = glGetUniformLocation(baseShader, "textureSize");
+        glUniform1i(textureSizeID, textureHeight);
 
         //draw 3 points
         glUniformMatrix4fv(MVP_Matrix_ID, 1, GL_FALSE, &(result[0][0]));
-		glBindVertexArray(vertex_AO);
-        glDrawArrays(GL_POINTS, 0, 3);
+        glUniform1f(inputVal_ID, angle);
+        //glBindVertexArray(vertex_AO); //Actually doesn't need this. neat
+        int num = frame1.numPixels();
+        glDrawArrays(GL_POINTS, 0, num);
+        glBindVertexArray(0);
         
     glUseProgram(0);
-	
-    glutSwapBuffers();
+}
 
+void Draw()
+{
+    //--------------processing pass------------------
+    processingPass();	
+
+    //CLEAR SCREEN
+    glViewport(0,0,ScreenWidth, ScreenHeight);
+    glClearColor( 0.0f, 0.0f, 0.0f, 0.0f );
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    //----------------texture draw--------------------
+    textureDraw();
+
+    //--------------- point draw ------------------
+
+    particleDraw();
+	
+
+    glutSwapBuffers();
     glutPostRedisplay();
 }
 
